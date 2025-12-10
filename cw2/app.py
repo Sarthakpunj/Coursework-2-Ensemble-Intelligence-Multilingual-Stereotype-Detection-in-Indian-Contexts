@@ -20,14 +20,14 @@ try:
     CODECARBON_AVAILABLE = True
 except ImportError:
     CODECARBON_AVAILABLE = False
-    print("⚠️  CodeCarbon not available. Run: pip install codecarbon")
+    print("  CodeCarbon not available. Run: pip install codecarbon")
 
 try:
     from lime.lime_text import LimeTextExplainer
     LIME_AVAILABLE = True
 except ImportError:
     LIME_AVAILABLE = False
-    print("⚠️  LIME not available. Run: pip install lime")
+    print("  LIME not available. Run: pip install lime")
 
 import warnings
 warnings.filterwarnings('ignore')
