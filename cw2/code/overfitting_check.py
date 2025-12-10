@@ -1,7 +1,3 @@
-"""
-Overfitting Check: Evaluate on Train, Val, and Test
-This will show if models are overfitting
-"""
 
 import torch
 import numpy as np
