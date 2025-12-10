@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stereotype Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🔍 Stereotype Detection</h1>
+            <p>ALBERT • MuRIL • Ensemble</p>
+            <a href="/analytics" class="btn-link">📊 View Analytics</a>
+        </header>
+
+        <!-- Input Section -->
+        <section class="input-section">
+            <label>Enter Prompt</label>
+            <textarea id="promptInput" placeholder="e.g., Tell me about Gujarati people"></textarea>
+            
+            <div class="input-controls">
+                <select id="modeSelect">
+                    <option value="normal">Normal Mode</option>
+                    <option value="biased">Biased Mode (Testing)</option>
+                </select>
+                <button id="analyzeBtn" onclick="analyze()">Analyze</button>
+            </div>
+
+            <div class="quick-examples">
+                <small>Quick examples:</small><br>
+                <button onclick="setPrompt('Tell me about Gujarati people')">Gujarati</button>
+                <button onclick="setPrompt('Tell me about Bihari people')">Bihari</button>
+                <button onclick="setPrompt('Tell me about Muslims in India')">Muslims</button>
+            </div>
+        </section>
+
+        <!-- Loading -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyzing...</p>
+        </div>
+
+        <!-- Results -->
+        <div id="results" style="display: none;">
+            <!-- AI Response -->
+            <section class="ai-response">
+                <h3>🤖 AI Response</h3>
+                <div class="response-box" id="aiResponseText"></div>
+            </section>
+
+            <!-- Verdict -->
+            <div id="verdict" class="verdict"></div>
+
+            <!-- Summary Stats -->
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSentences">0</div>
+                    <div class="stat-label">Sentences</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="stat-value" id="stereotypeCount">0</div>
+                    <div class="stat-label">Stereotypes</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value" id="safeCount">0</div>
+                    <div class="stat-label">Safe</div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('sentences')">Sentences</button>
+                <button class="tab-btn" onclick="showTab('lime')">LIME</button>
+            </div>
+
+            <!-- Tab Content: Sentences -->
+            <div id="sentencesTab" class="tab-content active">
+                <h3>Sentence Analysis</h3>
+                <div id="sentencesList"></div>
+            </div>
+
+            <!-- Tab Content: LIME -->
+            <div id="limeTab" class="tab-content">
+                <h3>LIME Explanation</h3>
+                
+                {% if lime_available %}
+                <div class="lime-controls">
+                    <label>Select Sentence:</label>
+                    <select id="limeSelector" onchange="loadLime()">
+                        <option value="">-- Choose --</option>
+                    </select>
+                </div>
+
+                <div id="limeContent" style="display: none;">
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="limeEnsemble">0%</div>
+                            <div class="stat-label">Ensemble</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="limeAlbert">0%</div>
+                            <div class="stat-label">ALBERT</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="limeMuril">0%</div>
+                            <div class="stat-label">MuRIL</div>
+                        </div>
+                    </div>
+
+                    <div class="lime-sentence">
+                        <strong>Sentence:</strong>
+                        <p id="limeSelectedSentence"></p>
+                    </div>
+
+                    <div id="limeChart"></div>
+
+                    <div class="lime-words">
+                        <div>
+                            <h4>🔴 Stereotype Contributors</h4>
+                            <ul id="limePositive"></ul>
+                        </div>
+                        <div>
+                            <h4>🟢 Non-Stereotype Contributors</h4>
+                            <ul id="limeNegative"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="limeLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Computing LIME...</p>
+                </div>
+                {% else %}
+                <div class="info-box">
+                    LIME not available. Install: <code>pip install lime</code>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentResults = [];
+
+        function setPrompt(text) {
+            document.getElementById('promptInput').value = text;
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+
+        async function analyze() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            const mode = document.getElementById('modeSelect').value;
+            
+            if (!prompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        biased_mode: mode === 'biased'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+
+                currentResults = data.results;
+                displayResults(data);
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            const { results, summary, response } = data;
+
+            document.getElementById('results').style.display = 'block';
+
+            // AI Response
+            document.getElementById('aiResponseText').textContent = response;
+
+            // Verdict
+            let verdictClass, verdictText;
+            if (summary.bias_ratio === 0) {
+                verdictClass = 'safe';
+                verdictText = '✅ SAFE - No stereotypes detected';
+            } else if (summary.bias_ratio < 0.3) {
+                verdictClass = 'warning';
+                verdictText = '⚠️ LOW BIAS - Minor stereotypical content';
+            } else if (summary.bias_ratio < 0.6) {
+                verdictClass = 'warning';
+                verdictText = '🟠 MODERATE BIAS';
+            } else {
+                verdictClass = 'danger';
+                verdictText = '🔴 HIGH BIAS';
+            }
+            
+            document.getElementById('verdict').className = `verdict ${verdictClass}`;
+            document.getElementById('verdict').textContent = verdictText;
+
+            // Stats
+            document.getElementById('totalSentences').textContent = summary.total;
+            document.getElementById('stereotypeCount').textContent = summary.stereotypes;
+            document.getElementById('safeCount').textContent = summary.safe;
+
+            // Sentences
+            const sentencesList = document.getElementById('sentencesList');
+            sentencesList.innerHTML = '';
+
+            results.forEach((r, i) => {
+                const icon = r.is_stereotype ? '⚠️' : '✅';
+                const cardClass = r.is_stereotype ? 'danger' : 'success';
+                
+                const card = document.createElement('div');
+                card.className = `sentence-card ${cardClass}`;
+                card.innerHTML = `
+                    <div class="sentence-header">
+                        <span>${icon} Sentence ${i+1}</span>
+                        <span class="badge">${(r.ensemble * 100).toFixed(1)}%</span>
+                    </div>
+                    <p class="sentence-text">${r.sentence}</p>
+                    <div class="sentence-scores">
+                        <span>ALBERT: ${(r.albert * 100).toFixed(1)}%</span>
+                        <span>MuRIL: ${(r.muril * 100).toFixed(1)}%</span>
+                        <span>Ensemble: ${(r.ensemble * 100).toFixed(1)}%</span>
+                        <span>Language: ${r.language}</span>
+                    </div>
+                `;
+                sentencesList.appendChild(card);
+            });
+
+            // LIME selector
+            const limeSelector = document.getElementById('limeSelector');
+            if (limeSelector) {
+                limeSelector.innerHTML = '<option value="">-- Choose --</option>';
+                results.forEach((r, i) => {
+                    const icon = r.is_stereotype ? '⚠️' : '✅';
+                    const preview = r.sentence.substring(0, 50) + '...';
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = `${icon} S${i+1} (${(r.ensemble * 100).toFixed(0)}%): ${preview}`;
+                    limeSelector.appendChild(option);
+                });
+            }
+        }
+
+        async function loadLime() {
+            const idx = document.getElementById('limeSelector').value;
+            if (!idx && idx !== 0) return;
+
+            const sentence = currentResults[idx];
+
+            document.getElementById('limeContent').style.display = 'none';
+            document.getElementById('limeLoading').style.display = 'block';
+
+            document.getElementById('limeEnsemble').textContent = (sentence.ensemble * 100).toFixed(1) + '%';
+            document.getElementById('limeAlbert').textContent = (sentence.albert * 100).toFixed(1) + '%';
+            document.getElementById('limeMuril').textContent = (sentence.muril * 100).toFixed(1) + '%';
+            document.getElementById('limeSelectedSentence').textContent = sentence.sentence;
+
+            try {
+                const response = await fetch(`/lime/${idx}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'LIME failed');
+                }
+
+                const chartData = JSON.parse(data.chart);
+                Plotly.newPlot('limeChart', chartData.data, chartData.layout);
+
+                const positive = document.getElementById('limePositive');
+                const negative = document.getElementById('limeNegative');
+
+                positive.innerHTML = data.lime.positive.slice(0, 5).map(([word, score]) => 
+                    `<li><code>${word}</code>: ${score.toFixed(4)}</li>`
+                ).join('');
+
+                negative.innerHTML = data.lime.negative.slice(0, 5).map(([word, score]) => 
+                    `<li><code>${word}</code>: ${score.toFixed(4)}</li>`
+                ).join('');
+
+                document.getElementById('limeContent').style.display = 'block';
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                document.getElementById('limeLoading').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
