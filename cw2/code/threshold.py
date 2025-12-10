@@ -1,7 +1,4 @@
-"""
-Find Optimal Threshold Using Validation Set
-Analyzes precision, recall, F1 at different thresholds
-"""
+
 
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, BertTokenizer
