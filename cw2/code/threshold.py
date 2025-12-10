@@ -15,7 +15,7 @@ MURIL_PATH = "/Users/sarthakpunj/Downloads/muril_proper_final"
 ENSEMBLE_PATH = "/Users/sarthakpunj/Downloads/bias_detection_COMPLETE/ensemble_meta_model_proper.pkl"
 
 print("="*60)
-print("🔍 THRESHOLD OPTIMIZATION")
+print("THRESHOLD OPTIMIZATION")
 print("="*60)
 
 # Load models
@@ -208,7 +208,7 @@ print(" Saved: threshold_analysis.png")
 plt.show()
 
 print("\n" + "="*60)
-print(f"💡 RECOMMENDED THRESHOLD: {best_f1['threshold']:.2f}")
+print(f"RECOMMENDED THRESHOLD: {best_f1['threshold']:.2f}")
 print("="*60)
 print(f"\nThis threshold provides the best F1-score balance.")
 print(f"Update your code to use: THRESHOLD = {best_f1['threshold']:.2f}")
