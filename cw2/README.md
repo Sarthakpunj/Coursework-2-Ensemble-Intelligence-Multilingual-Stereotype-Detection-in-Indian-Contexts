@@ -69,13 +69,13 @@ A unified dataset of **50,000 samples**, balanced:
 
 ---
 
-##  **Performance**
+##  **Performance and Overfitting**
 
-| Model | Accuracy | Precision | Notes |
-|-------|----------|-----------|-------|
-| ALBERT | 95.6% | ~99% | Efficient & stable |
-| MuRIL | 95.6% | ~97% | Best for Hindi |
-| **Ensemble** | **95.8%** | **100%** | No false positives |
+<img width="1002" height="544" alt="image" src="https://github.com/user-attachments/assets/b834a63d-2b0e-472f-9f4b-af4a6a9edcac" />
+
+
+<img width="1002" height="539" alt="image" src="https://github.com/user-attachments/assets/15a917d7-ed83-4599-9ca7-dad98ed41687" />
+
 
 ### Improvements
 - +15.8% over ALBERT baseline (80% macro-F1 from original paper)
