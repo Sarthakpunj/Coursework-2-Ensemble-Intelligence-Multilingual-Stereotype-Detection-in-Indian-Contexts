@@ -66,7 +66,7 @@ def predict_batch(texts):
             'ALBERT': f"{albert_probs[1]*100:.1f}%",
             'MuRIL': f"{muril_probs[1]*100:.1f}%",
             'Ensemble': f"{ensemble_prob*100:.1f}%",
-            'Result': ' STEREO' if is_stereotype else ' SAFE'
+            'Result': 'STEREO' if is_stereotype else 'SAFE'
         })
     
     return results
